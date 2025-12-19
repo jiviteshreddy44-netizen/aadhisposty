@@ -3,7 +3,13 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { ComplaintAnalysis, GroundingLink } from "../types";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.error("Gemini API Key is missing. Ensure process.env.API_KEY is defined.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const analyzeComplaint = async (description: string, imageUrl?: string, context?: string, trackingNumber?: string): Promise<ComplaintAnalysis> => {
   const ai = getAI();
@@ -273,7 +279,7 @@ export const generateSpeech = async (text: string): Promise<string | undefined> 
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: 'Kore' },
