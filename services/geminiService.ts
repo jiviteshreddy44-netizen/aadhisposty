@@ -1,11 +1,13 @@
-
 // @ts-nocheck
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { ComplaintAnalysis, GroundingLink } from "../types";
 
 const getAI = () => {
-  // Fix: Initialize GoogleGenAI using process.env.API_KEY directly as required by the guidelines
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("Gemini API Key is missing! Ensure it is set in your environment variables as API_KEY.");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
 export const analyzeComplaint = async (description: string, imageUrl?: string, context?: string, trackingNumber?: string): Promise<ComplaintAnalysis> => {
@@ -89,7 +91,6 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
       }
     });
 
-    // Fix: Access response.text directly as a property
     return JSON.parse(response.text?.trim() || "{}");
   } catch (error) {
     console.error("AI Analysis Failed:", error);
@@ -99,8 +100,6 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
   const ai = getAI();
-  // CRITICAL: Strip codecs from mimeType (e.g., 'audio/webm;codecs=opus' -> 'audio/webm')
-  // Gemini expects standard MIME types without browser-specific codec strings.
   const sanitizedMimeType = mimeType.split(';')[0];
   
   try {
@@ -113,7 +112,6 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
         ]
       }]
     });
-    // Fix: Access response.text directly as a property
     return response.text?.trim() || "";
   } catch (e) {
     console.error("Transcription Failed. Likely MIME type or Key issue:", e);
@@ -139,7 +137,6 @@ export const translateAndRefine = async (text: string): Promise<{ translated: st
         }
       }
     });
-    // Fix: Access response.text directly as a property
     return JSON.parse(response.text?.trim() || "{}");
   } catch (e) {
     return { translated: text, originalLang: "Unknown" };
@@ -154,7 +151,6 @@ export const polishDraft = async (draft: string) => {
       contents: `Polish this draft: "${draft}"`,
       config: { systemInstruction: "Make this response more professional for an India Post official." }
     });
-    // Fix: Access response.text directly as a property
     return response.text || draft;
   } catch (e) {
     return draft;
@@ -172,13 +168,11 @@ export const getQuickSupport = async (query: string, userHistory?: string): Prom
     },
   });
 
-  // Fix: Extract grounding chunks for search grounding implementation
   const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const links = rawChunks
     .filter(chunk => chunk.web && chunk.web.title && chunk.web.uri)
     .map(chunk => ({ title: chunk.web.title, uri: chunk.web.uri }));
 
-  // Fix: Access response.text directly as a property
   return {
     text: response.text || "I'm sorry, I could not find an answer.",
     links: links.length > 0 ? links : undefined
@@ -197,13 +191,11 @@ export const findNearbyBranches = async (lat: number, lng: number): Promise<any>
       }
     });
     
-    // Fix: Extract grounding chunks for maps grounding implementation
     const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const mapsLinks = rawChunks
       .filter(chunk => chunk.maps && chunk.maps.uri)
       .map(chunk => chunk.maps.uri);
 
-    // Fix: Access response.text directly as a property
     return {
       text: response.text || "No branches found.",
       links: mapsLinks
@@ -235,7 +227,6 @@ export const extractDetailsFromImage = async (base64Image: string) => {
         }
       }
     });
-    // Fix: Access response.text directly as a property
     return JSON.parse(response.text?.trim() || "{}");
   } catch (e) {
     return null;
@@ -274,7 +265,6 @@ export const decodeAudio = (base64: string): Uint8Array => {
   return bytes;
 };
 
-// Fix: Implement manual audio decoding for PCM data as required by the Live/TTS API guidelines
 export async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
