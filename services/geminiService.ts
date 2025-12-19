@@ -4,11 +4,8 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { ComplaintAnalysis, GroundingLink } from "../types";
 
 const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("Gemini API Key is missing. Ensure process.env.API_KEY is defined.");
-  }
-  return new GoogleGenAI({ apiKey });
+  // Fix: Initialize GoogleGenAI using process.env.API_KEY directly as required by the guidelines
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export const analyzeComplaint = async (description: string, imageUrl?: string, context?: string, trackingNumber?: string): Promise<ComplaintAnalysis> => {
@@ -23,20 +20,11 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
     - keywordSeverity: Detect words like 'medicine', 'court', 'bank', 'passport', 'delay', 'urgent', 'loss', 'theft'.
     - sentimentImpact: Quantify anger, desperation, or frustration.
     - categoryWeight: 'Lost Parcel' (90), 'Staff Misconduct' (85), 'Delivery Delay' (60), 'General Enquiry' (30).
-    
-    CITIZEN INSIGHT:
-    - Synthesize a 'Citizen DNA' profile based on their grievance history and tone.
-    
-    LOGISTICS AUDIT:
-    - If tracking number exists (e.g., EB12345IN), provide a technical hypothesis of where the failure occurred (Sortation Hub, Postman Delivery, or NSH Transit).
-    
-    INVESTIGATION STRATEGY:
-    - Provide 3-4 actionable technical steps for an officer to take.
   `;
 
   const parts: any[] = [
-    { text: `Staff Context (Previous Interaction History): ${context || "None"}` },
-    { text: `Current Grievance Text: ${description}` },
+    { text: `Staff Context: ${context || "None"}` },
+    { text: `Grievance: ${description}` },
     { text: `Tracking ID: ${trackingNumber || "N/A"}` }
   ];
   
@@ -101,59 +89,34 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
       }
     });
 
+    // Fix: Access response.text directly as a property
     return JSON.parse(response.text?.trim() || "{}");
   } catch (error) {
-    console.error("AI Strategic Analysis Failed:", error);
-    return {
-      category: "Other",
-      sentiment: "Neutral",
-      emotionalToneScore: 50,
-      urgencyScore: 50,
-      priorityScore: 50,
-      priorityLabel: "Routine",
-      summary: "Manual classification required.",
-      suggestedResponse: "Namaste. Your grievance is being reviewed by our specialists.",
-      tags: ["manual-review"],
-      translatedText: description,
-      slaDeadline: new Date(Date.now() + 86400000 * 3).toISOString(),
-      predictedResolutionHours: 72,
-      intelligenceBriefing: {
-        suggestedRegulations: ["SOP Grievance v4"],
-        riskAssessment: "Medium",
-        investigationStrategy: ["Contact local postmaster", "Verify tracking logs"],
-        escalationProbability: 10,
-        recommendedTone: "Formal",
-        priorityBreakdown: {
-          keywordSeverity: 50,
-          sentimentImpact: 50,
-          categoryWeight: 50,
-          explanation: "Fallback priority assigned."
-        },
-        citizenProfile: {
-          loyaltyLevel: "New",
-          previousResolutionSatisfaction: "N/A",
-          historicalSentimentTrend: "Stable"
-        }
-      }
-    };
+    console.error("AI Analysis Failed:", error);
+    return { category: "Other", sentiment: "Neutral", summary: "Manual classification required." };
   }
 };
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
   const ai = getAI();
+  // CRITICAL: Strip codecs from mimeType (e.g., 'audio/webm;codecs=opus' -> 'audio/webm')
+  // Gemini expects standard MIME types without browser-specific codec strings.
+  const sanitizedMimeType = mimeType.split(';')[0];
+  
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{
         parts: [
-          { inlineData: { mimeType, data: base64Audio } },
-          { text: "Act as a transcription expert for India Post. Transcribe the provided audio into text. If it is in Hindi, transcribe it into Hindi. If it is in English, transcribe it into English. Output ONLY the transcribed text." }
+          { inlineData: { mimeType: sanitizedMimeType, data: base64Audio } },
+          { text: "Transcribe the provided audio accurately. Output ONLY the transcribed text." }
         ]
       }]
     });
+    // Fix: Access response.text directly as a property
     return response.text?.trim() || "";
   } catch (e) {
-    console.error("Transcription Failed:", e);
+    console.error("Transcription Failed. Likely MIME type or Key issue:", e);
     throw e;
   }
 };
@@ -165,7 +128,7 @@ export const translateAndRefine = async (text: string): Promise<{ translated: st
       model: "gemini-3-flash-preview",
       contents: `Input Text: "${text}"`,
       config: { 
-        systemInstruction: "You are the India Post official translation engine. Detect the language of the input. If it is not English, translate it to formal English. If it is English, refine the grammar to be more professional. Return JSON.",
+        systemInstruction: "Detect language. If not English, translate to formal English. If English, refine grammar. Return JSON.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -176,6 +139,7 @@ export const translateAndRefine = async (text: string): Promise<{ translated: st
         }
       }
     });
+    // Fix: Access response.text directly as a property
     return JSON.parse(response.text?.trim() || "{}");
   } catch (e) {
     return { translated: text, originalLang: "Unknown" };
@@ -188,8 +152,9 @@ export const polishDraft = async (draft: string) => {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Polish this draft: "${draft}"`,
-      config: { systemInstruction: "Make this response more empathetic and professional for an India Post official." }
+      config: { systemInstruction: "Make this response more professional for an India Post official." }
     });
+    // Fix: Access response.text directly as a property
     return response.text || draft;
   } catch (e) {
     return draft;
@@ -203,15 +168,17 @@ export const getQuickSupport = async (query: string, userHistory?: string): Prom
     contents: `Query: ${query}\nContext: ${userHistory || "None"}`,
     config: {
       tools: [{ googleSearch: {} }],
-      systemInstruction: "You are Dak-Mitra, the India Post AI. Provide helpful, accurate information based on official sources.",
+      systemInstruction: "You are Dak-Mitra, the India Post AI.",
     },
   });
 
+  // Fix: Extract grounding chunks for search grounding implementation
   const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   const links = rawChunks
     .filter(chunk => chunk.web && chunk.web.title && chunk.web.uri)
     .map(chunk => ({ title: chunk.web.title, uri: chunk.web.uri }));
 
+  // Fix: Access response.text directly as a property
   return {
     text: response.text || "I'm sorry, I could not find an answer.",
     links: links.length > 0 ? links : undefined
@@ -230,11 +197,13 @@ export const findNearbyBranches = async (lat: number, lng: number): Promise<any>
       }
     });
     
+    // Fix: Extract grounding chunks for maps grounding implementation
     const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const mapsLinks = rawChunks
       .filter(chunk => chunk.maps && chunk.maps.uri)
       .map(chunk => chunk.maps.uri);
 
+    // Fix: Access response.text directly as a property
     return {
       text: response.text || "No branches found.",
       links: mapsLinks
@@ -266,6 +235,7 @@ export const extractDetailsFromImage = async (base64Image: string) => {
         }
       }
     });
+    // Fix: Access response.text directly as a property
     return JSON.parse(response.text?.trim() || "{}");
   } catch (e) {
     return null;
@@ -304,6 +274,7 @@ export const decodeAudio = (base64: string): Uint8Array => {
   return bytes;
 };
 
+// Fix: Implement manual audio decoding for PCM data as required by the Live/TTS API guidelines
 export async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,

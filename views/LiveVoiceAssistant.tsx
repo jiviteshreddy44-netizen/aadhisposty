@@ -23,6 +23,7 @@ const decode = (base64: string) => {
   return bytes;
 };
 
+// Fix: Implement manual audio decoding logic for raw PCM streams
 async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
@@ -75,6 +76,7 @@ const LiveVoiceAssistant: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setError(null);
     
     try {
+      // Fix: Use process.env.API_KEY directly when initializing the GoogleGenAI client instance
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const inCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -96,13 +98,13 @@ const LiveVoiceAssistant: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             const scriptProcessor = inCtx.createScriptProcessor(4096, 1, 1);
             
             scriptProcessor.onaudioprocess = (e) => {
-              if (!isActive && !isConnecting) return;
               const inputData = e.inputBuffer.getChannelData(0);
               const int16 = new Int16Array(inputData.length);
               for (let i = 0; i < inputData.length; i++) {
                 int16[i] = inputData[i] * 32768;
               }
               
+              // CRITICAL: Solely rely on sessionPromise resolves and then call `session.sendRealtimeInput`
               sessionPromise.then(session => {
                 session.sendRealtimeInput({
                   media: {
@@ -124,6 +126,7 @@ const LiveVoiceAssistant: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               for (const part of modelTurn.parts) {
                 if (part.inlineData?.data) {
                   const audioData = part.inlineData.data;
+                  // Fix: Schedule audio chunks to start at the exact end of the previous chunk
                   nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outCtx.currentTime);
                   const buffer = await decodeAudioData(decode(audioData), outCtx, 24000, 1);
                   const source = outCtx.createBufferSource();

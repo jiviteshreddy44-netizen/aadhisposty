@@ -1,4 +1,3 @@
-
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Complaint, ComplaintStatus } from '../types';
@@ -51,7 +50,6 @@ const SubmitComplaint: React.FC<SubmitProps> = ({ user, onSubmit, existingCompla
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
@@ -83,6 +81,11 @@ const SubmitComplaint: React.FC<SubmitProps> = ({ user, onSubmit, existingCompla
   };
 
   const startRecording = async () => {
+    if (!window.isSecureContext) {
+      setVoiceError("Microphone access requires a secure context (HTTPS or localhost).");
+      return;
+    }
+
     setVoiceError(null);
     audioChunksRef.current = [];
     try {
@@ -90,7 +93,6 @@ const SubmitComplaint: React.FC<SubmitProps> = ({ user, onSubmit, existingCompla
       streamRef.current = stream;
       
       const mimeType = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/wav'].find(type => MediaRecorder.isTypeSupported(type)) || '';
-      
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
@@ -108,7 +110,7 @@ const SubmitComplaint: React.FC<SubmitProps> = ({ user, onSubmit, existingCompla
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      setVoiceError("Microphone access denied. Please ensure you are on a secure (HTTPS) connection.");
+      setVoiceError("Microphone access denied or not available.");
     }
   };
 
@@ -141,7 +143,7 @@ const SubmitComplaint: React.FC<SubmitProps> = ({ user, onSubmit, existingCompla
       };
     } catch (err) {
       console.error("Voice process error:", err);
-      setVoiceError("The transcription service is temporarily unavailable. Please type your grievance.");
+      setVoiceError("The transcription service is temporarily unavailable.");
     } finally {
       setIsProcessingVoice(false);
     }
