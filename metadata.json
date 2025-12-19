@@ -1,0 +1,9 @@
+{
+  "name": "[do not touch] aadhi's Copy of Copy of Posty - Indian Postal Complaint System",
+  "description": "A modern, AI-powered grievance management system for the Indian Postal Department featuring automated classification, sentiment analysis, ticket prioritization, and AI branch finder.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
