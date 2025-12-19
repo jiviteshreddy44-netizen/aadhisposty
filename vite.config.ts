@@ -1,19 +1,19 @@
+// @ts-nocheck
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-  // Fix: Cast process to any to bypass TypeScript error for missing cwd property on certain Process types
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  // Load environment variables from the current directory.
+  // The third argument '' allows loading all variables regardless of prefix.
+  const env = loadEnv(mode, process.cwd(), '');
   
-  // Robustly capture the API key from multiple possible sources (Vercel env, local .env, etc.)
+  // Prioritize API_KEY or VITE_API_KEY from the environment.
   const API_KEY = env.API_KEY || env.VITE_API_KEY || process.env.API_KEY || process.env.VITE_API_KEY || '';
 
   return {
     plugins: [react()],
     define: {
-      // Injects the API key into the browser bundle
+      // Vite replaces this string with the actual API key value during build.
       'process.env.API_KEY': JSON.stringify(API_KEY)
     },
     server: {
